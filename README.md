@@ -1,44 +1,71 @@
 # TaskForge
 
-TaskForge is a Laravel + React task and project management app. PostgreSQL and the Laravel API run in Docker; Vite runs locally for fast frontend iteration.
+TaskForge is a team workspace for planning projects and tracking day to day work. Teams can organize work into projects, move tasks through a shared board, coordinate ownership and deadlines, and see how work is progressing across the workspace.
 
-## Requirements
+## What you can do
 
-- Node.js 20+, npm
-- Docker Engine with Compose
+- Create workspaces, invite teammates, and manage access with owner, admin, member, and viewer roles.
+- Organize projects with statuses, dates, and project keys.
+- Plan work on a task board with backlog, to do, in progress, in review, and done columns, or switch to a task list.
+- Track task priority, assignee, deadline, estimate, labels, and dependencies.
+- Discuss tasks with comments, attach files, and review task activity.
+- Review project progress and team workload in overview and analytics pages.
+- Get notifications for task and team activity.
+- Ask the workspace AI assistant questions about project progress, tasks, and workload. The assistant supports a configured AI service and per-user API keys.
+- Sign in with email and password. Google and GitHub sign in are available when OAuth credentials are configured.
 
-## Start
+## Run locally
 
-1. Copy the local environment file and start the API + PostgreSQL:
+### Requirements
 
-   ```sh
-   cp backend/.env.example backend/.env
-   docker compose up --build -d
-   ```
+- Docker Engine with Docker Compose
+- Node.js 20 or newer and npm
 
-   The API container installs PHP dependencies, creates the local key, applies migrations and seeds demo data on first start.
-2. Start the React app:
-
-   ```sh
-   cd frontend
-   npm install
-   npm run dev
-   ```
-
-Open `http://localhost:5174`. Demo login: `demo@taskforge.local` / `password`.
-
-## Stack and API
-
-- Laravel 13, Sanctum, PostgreSQL, Pest
-- React, TypeScript, Vite, Tailwind CSS, React Router, TanStack Query, Axios
-- Versioned JSON API under `/api/v1`; see [API documentation](API.md) and the ERD/decisions in [ARCHITECTURE.md](ARCHITECTURE.md).
-
-`backend/.env.example` contains local-only defaults. Change credentials and the app key before any shared deployment. PostgreSQL is exposed on host port `5433` because `5432` was already occupied in the inspected environment. Data persists in the `taskforge-postgres` Docker volume.
-
-## Checks
+### Start the backend and database
 
 ```sh
+cp backend/.env.example backend/.env
+docker compose up --build -d
+```
+
+The API container installs PHP dependencies, generates an app key when needed, runs migrations, and seeds demo data. Laravel API runs at `http://localhost:8000`; PostgreSQL is exposed at `localhost:5433`.
+
+### Start the frontend
+
+In another terminal:
+
+```sh
+cd frontend
+npm install
+npm run dev
+```
+
+Open `http://localhost:5174`.
+
+### Demo account
+
+Use `demo@taskforge.local` with password `password`. The seed also creates workspace members with different roles and sample projects, tasks, labels, comments, dependencies, and sprints.
+
+## Project structure
+
+- `frontend/` contains the React and TypeScript single page application.
+- `backend/` contains the Laravel application and versioned JSON API at `/api/v1`.
+- `compose.yaml` starts the API, frontend development server, and PostgreSQL database.
+
+The frontend uses React Router for page navigation and calls Laravel through the `/api/v1` endpoints. Laravel uses Sanctum personal access tokens for API authentication and PostgreSQL for application data.
+
+## Configuration
+
+Local defaults live in `backend/.env.example`. OAuth and AI integrations are optional; configure the matching credentials and redirect URLs in `backend/.env` to enable them. The shipped database credentials are for local development only. Set secure credentials and an app key before deploying to a shared environment.
+
+## Useful commands
+
+```sh
+# Backend feature and unit tests
 docker compose exec api php artisan test
-docker compose exec api vendor/bin/pint --format agent
-cd frontend && npm run build && npm run lint
+
+# Frontend production build and lint
+cd frontend
+npm run build
+npm run lint
 ```
