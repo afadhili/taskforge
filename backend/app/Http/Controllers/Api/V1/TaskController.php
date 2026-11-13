@@ -80,7 +80,7 @@ class TaskController extends Controller
     {
         $this->authorize('update', $task);
 
-        $data = $request->validate(['dependency_ids' => ['required', 'array', 'max:100'], 'dependency_ids.*' => ['integer', 'distinct', 'exists:tasks,id']]);
+        $data = $request->validate(['dependency_ids' => ['present', 'array', 'max:100'], 'dependency_ids.*' => ['integer', 'distinct', 'exists:tasks,id']]);
 
         return new TaskResource($this->service->setDependencies($request->user(), $task, $data['dependency_ids']));
     }

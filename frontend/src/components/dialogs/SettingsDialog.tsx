@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Camera, Check, Copy, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 import { api, setToken } from "@/api";
 import { message } from "@/lib/errors";
 import { useApp } from "@/components/app-context";
@@ -29,9 +30,19 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
-import type { User } from "@/types";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import type { User, Workspace as WorkspaceRecord, WorkspaceMember } from "@/types";
 
-function InviteTeammate({ workspaceId }: { workspaceId: number }) {
+function InviteTeammate({ workspaceId, canInviteAdmins }: { workspaceId: number; canInviteAdmins: boolean }) {
   const [role, setRole] = useState("member");
   const [inviteUrl, setInviteUrl] = useState("");
   const [copied, setCopied] = useState(false);
@@ -82,7 +93,7 @@ function InviteTeammate({ workspaceId }: { workspaceId: number }) {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="admin">Admin</SelectItem>
+              {canInviteAdmins && <SelectItem value="admin">Admin</SelectItem>}
               <SelectItem value="member">Member</SelectItem>
               <SelectItem value="viewer">Viewer</SelectItem>
             </SelectContent>
@@ -120,7 +131,16 @@ function InviteTeammate({ workspaceId }: { workspaceId: number }) {
   );
 }
 
-function MembersList({ workspaceId }: { workspaceId: number }) {
+function MembersList({
+  workspaceId,
+  currentUserId,
+  workspaceRole,
+}: {
+  workspaceId: number;
+  currentUserId: number;
+  workspaceRole?: "owner" | "admin" | "member" | "viewer";
+}) {
+  const qc = useQueryClient();
   const {
     data: members,
     isLoading,
@@ -128,6 +148,27 @@ function MembersList({ workspaceId }: { workspaceId: number }) {
     error,
   } = useProjectMembers(workspaceId);
   const list = members ?? [];
+  const [memberToRemove, setMemberToRemove] = useState<WorkspaceMember | null>(null);
+  const [removing, setRemoving] = useState(false);
+
+  const removeMember = async () => {
+    if (!memberToRemove) return;
+    setRemoving(true);
+    try {
+      await api.delete(`/workspaces/${workspaceId}/members/${memberToRemove.id}`);
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["/workspaces", workspaceId, "members"] }),
+        qc.invalidateQueries({ queryKey: ["tasks"] }),
+        qc.invalidateQueries({ queryKey: ["projects", workspaceId] }),
+      ]);
+      toast.success(`${memberToRemove.name} removed from the workspace`);
+      setMemberToRemove(null);
+    } catch (error) {
+      toast.error(message(error).message);
+    } finally {
+      setRemoving(false);
+    }
+  };
 
   return (
     <section className="grid gap-3">
@@ -157,6 +198,21 @@ function MembersList({ workspaceId }: { workspaceId: number }) {
                   {member.email}
                 </span>
               </span>
+              <Badge variant="secondary" className="capitalize">{member.role}</Badge>
+              {member.id !== currentUserId &&
+                ((workspaceRole === "owner" && member.role !== "owner") ||
+                  (workspaceRole === "admin" && ["member", "viewer"].includes(member.role))) && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={`Remove ${member.name} from workspace`}
+                    title="Remove member"
+                    onClick={() => setMemberToRemove(member)}
+                  >
+                    <Trash2 />
+                  </Button>
+                )}
             </li>
           ))}
           {!list.length && (
@@ -164,6 +220,27 @@ function MembersList({ workspaceId }: { workspaceId: number }) {
           )}
         </ul>
       )}
+      <AlertDialog
+        open={!!memberToRemove}
+        onOpenChange={(open) => {
+          if (!open && !removing) setMemberToRemove(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove workspace member?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {memberToRemove?.name} will be removed from this workspace and their assigned tasks will become unassigned.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={removing}>Cancel</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" disabled={removing} onClick={() => void removeMember()}>
+              {removing ? "Removing…" : "Remove member"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
   );
 }
@@ -176,6 +253,7 @@ export function SettingsDialog({
   close: () => void;
 }) {
   const { user, setUser, workspace } = useApp();
+  const qc = useQueryClient();
   const { resolvedTheme, setTheme } = useTheme();
   const [profileError, setProfileError] = useState("");
   const [profileSaved, setProfileSaved] = useState(false);
@@ -185,6 +263,32 @@ export function SettingsDialog({
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [avatarError, setAvatarError] = useState("");
   const [avatarBusy, setAvatarBusy] = useState(false);
+  const [workspaceName, setWorkspaceName] = useState(workspace.name);
+  const [workspaceNameError, setWorkspaceNameError] = useState("");
+  const [workspaceNameBusy, setWorkspaceNameBusy] = useState(false);
+
+  useEffect(() => {
+    setWorkspaceName(workspace.name);
+  }, [workspace.id, workspace.name]);
+
+  const saveWorkspaceName = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setWorkspaceNameBusy(true);
+    setWorkspaceNameError("");
+    try {
+      const result = await api.patch<{ data: WorkspaceRecord }>(`/workspaces/${workspace.id}`, {
+        name: workspaceName,
+      });
+      qc.setQueryData<WorkspaceRecord[]>(["workspaces"], previous =>
+        previous?.map(item => item.id === result.data.data.id ? { ...item, ...result.data.data } : item),
+      );
+      toast.success("Workspace name updated.");
+    } catch (reason) {
+      setWorkspaceNameError(message(reason).message);
+    } finally {
+      setWorkspaceNameBusy(false);
+    }
+  };
 
   useEffect(() => {
     return () => {
@@ -467,9 +571,43 @@ export function SettingsDialog({
 
         {workspace.id > 0 && (
           <>
-            <InviteTeammate workspaceId={workspace.id} />
+            {workspace.role === "owner" && (
+              <>
+                <form className="grid gap-3" onSubmit={saveWorkspaceName}>
+                  <h3 className="text-sm font-semibold">Workspace name</h3>
+                  <div className="grid gap-2">
+                    <Label htmlFor="workspace-name-edit">Name</Label>
+                    <Input
+                      id="workspace-name-edit"
+                      value={workspaceName}
+                      maxLength={120}
+                      required
+                      onChange={event => setWorkspaceName(event.target.value)}
+                    />
+                  </div>
+                  {workspaceNameError && (
+                    <Alert variant="destructive">
+                      <AlertDescription>{workspaceNameError}</AlertDescription>
+                    </Alert>
+                  )}
+                  <Button type="submit" disabled={workspaceNameBusy || workspaceName === workspace.name}>
+                    {workspaceNameBusy && <Spinner />}
+                    Save workspace name
+                  </Button>
+                </form>
+                <Separator />
+              </>
+            )}
+            <InviteTeammate
+              workspaceId={workspace.id}
+              canInviteAdmins={workspace.role === "owner" || workspace.role === "admin"}
+            />
             <Separator />
-            <MembersList workspaceId={workspace.id} />
+            <MembersList
+              workspaceId={workspace.id}
+              currentUserId={user.id}
+              workspaceRole={workspace.role}
+            />
           </>
         )}
       </DialogContent>

@@ -10,7 +10,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "sonner";
@@ -117,7 +116,7 @@ export function NotificationsMenu() {
           </Button>
         </div>
         <Separator />
-        <ScrollArea className="max-h-80">
+        <div className="max-h-80 overflow-y-auto overscroll-contain">
           {notifications.isLoading ? (
             <div className="flex items-center gap-2 p-4 text-sm text-muted-foreground">
               <Spinner className="size-4" /> Loading…
@@ -138,7 +137,7 @@ export function NotificationsMenu() {
               <button
                 key={item.id}
                 type="button"
-                className="grid w-full gap-1 border-b border-border/60 px-3 py-2.5 text-left last:border-0 hover:bg-accent"
+                className="grid w-full min-w-0 gap-1 border-b border-border/60 px-3 py-2.5 text-left last:border-0 hover:bg-accent"
                 onClick={() => markOne.mutate(item.id)}
               >
                 <span className="flex items-center gap-2">
@@ -149,7 +148,7 @@ export function NotificationsMenu() {
                     <span className="size-1.5 rounded-full bg-primary" />
                   )}
                 </span>
-                <span className="text-sm">
+                <span className="break-words text-sm">
                   {String(
                     item.data?.title ??
                       item.data?.workspace ??
@@ -162,7 +161,7 @@ export function NotificationsMenu() {
               </button>
             ))
           )}
-        </ScrollArea>
+        </div>
       </PopoverContent>
     </Popover>
   );

@@ -136,6 +136,12 @@ export function AppSidebar() {
                                     {item.id === app.workspace.id && <Check className="ml-auto size-4" />}
                                 </DropdownMenuItem>
                             ))}
+                            {app.canCreateWorkspace && (
+                                <DropdownMenuItem onClick={app.openCreateWorkspace}>
+                                    <Plus className="size-4" />
+                                    Create workspace
+                                </DropdownMenuItem>
+                            )}
                         </DropdownMenuGroup>
                     </DropdownMenuContent>
                 </DropdownMenu>

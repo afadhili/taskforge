@@ -466,7 +466,12 @@ export function BoardPage() {
                 <KanbanCards id={lane.id} className="gap-2 p-2">
                   {(item) => {
                     const task = visible.find((t) => String(t.id) === item.id)!;
-                    return <KanbanCard key={item.id} {...item} className="mb-0 cursor-grab p-0 active:cursor-grabbing">
+                    return <KanbanCard
+                      key={item.id}
+                      {...item}
+                      disabled={task.is_blocked}
+                      className={`mb-0 p-0 ${task.is_blocked ? "cursor-not-allowed" : "cursor-grab active:cursor-grabbing"}`}
+                    >
                     <CardContent className="space-y-2 p-2.5">
                       <div className="flex items-center gap-1.5">
                         <Badge
@@ -475,6 +480,11 @@ export function BoardPage() {
                         >
                           {task.priority}
                         </Badge>
+                        {task.is_blocked && (
+                          <Badge variant="outline" className="border-amber-500/40 px-1.5 py-0 text-[10px] text-amber-700 dark:text-amber-300">
+                            Blocked
+                          </Badge>
+                        )}
                         {task.deadline &&
                           task.deadline < today &&
                           task.status !== "done" && (

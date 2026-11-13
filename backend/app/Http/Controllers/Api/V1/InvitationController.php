@@ -17,8 +17,8 @@ class InvitationController extends Controller
 {
     public function store(Request $request, Workspace $workspace, NotificationService $notifications): JsonResponse
     {
-        $this->authorize('update', $workspace);
         $data = $request->validate(['email' => ['required', 'email', 'max:255'], 'role' => ['sometimes', 'in:admin,member,viewer']]);
+        $this->authorize('invite', [$workspace, $data['role'] ?? 'member']);
         $plainToken = Str::random(48);
         $invitation = $workspace->invitations()->create(['invited_by' => $request->user()->id, 'email' => strtolower($data['email']), 'role' => $data['role'] ?? 'member', 'token_hash' => hash('sha256', $plainToken), 'expires_at' => now()->addDays(7)]);
         if ($invitee = User::where('email', $invitation->email)->first()) {

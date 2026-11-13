@@ -95,6 +95,10 @@ Route::prefix('v1')->group(function (): void {
             WorkspaceController::class,
             'updateMember',
         ]);
+        Route::delete('workspaces/{workspace}/members/{member}', [
+            WorkspaceController::class,
+            'removeMember',
+        ]);
         Route::get('workspaces/{workspace}/projects', [
             ProjectController::class,
             'index',

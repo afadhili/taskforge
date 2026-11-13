@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\TaskLabel;
+use App\Models\Task;
 use App\Models\User;
 use App\Models\Workspace;
 use Illuminate\Support\Collection;
@@ -15,6 +16,14 @@ class WorkspaceService
     public function create(User $owner, string $name): Workspace
     {
         return DB::transaction(function () use ($owner, $name): Workspace {
+            User::whereKey($owner->id)->lockForUpdate()->firstOrFail();
+
+            if (Workspace::where('owner_id', $owner->id)->count() >= 2) {
+                throw ValidationException::withMessages([
+                    'workspace' => ['You can create up to 2 workspaces.'],
+                ]);
+            }
+
             $base = Str::slug($name) ?: 'workspace';
             $slug = $base;
 
@@ -52,6 +61,7 @@ class WorkspaceService
                     'name' => $member->name,
                     'email' => $member->email,
                     'avatar_url' => $member->avatar_url,
+                    'role' => $member->pivot->role,
                 ],
             );
     }
@@ -98,6 +108,34 @@ class WorkspaceService
         $workspace
             ->members()
             ->updateExistingPivot($member->id, ['role' => $role]);
+    }
+
+    public function removeMember(Workspace $workspace, User $member): void
+    {
+        if ($member->id === $workspace->owner_id) {
+            throw ValidationException::withMessages([
+                'member' => ['The workspace owner cannot be removed.'],
+            ]);
+        }
+
+        if (! $workspace->members()->whereKey($member->id)->exists()) {
+            throw ValidationException::withMessages([
+                'member' => ['Member not found.'],
+            ]);
+        }
+
+        DB::transaction(function () use ($workspace, $member): void {
+            $projectIds = $workspace->projects()->pluck('id');
+            Task::whereIn('project_id', $projectIds)
+                ->where('assignee_id', $member->id)
+                ->update(['assignee_id' => null]);
+
+            foreach ($workspace->projects()->get() as $project) {
+                $project->members()->detach($member->id);
+            }
+
+            $workspace->members()->detach($member->id);
+        });
     }
 
     public function labels(Workspace $workspace): Collection

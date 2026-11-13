@@ -11,10 +11,16 @@ export type User = {
 
 export type Member = Pick<User, "id" | "name" | "email" | "avatar_url">;
 
+export type WorkspaceMember = Member & {
+  role: "owner" | "admin" | "member" | "viewer";
+};
+
 export type Workspace = {
   id: number;
   name: string;
   slug: string;
+  owner_id?: number;
+  role?: "owner" | "admin" | "member" | "viewer";
   members_count?: number;
   projects_count?: number;
 };
@@ -123,6 +129,7 @@ export type Task = {
   estimate_minutes: number;
   assignee?: Pick<User, "id" | "name" | "email" | "avatar_url"> | null;
   dependencies: number[];
+  is_blocked?: boolean;
   position?: number;
   labels?: { id: number; name: string; color: string }[];
   comments?: {

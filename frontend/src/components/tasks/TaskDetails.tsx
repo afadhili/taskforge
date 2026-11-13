@@ -108,7 +108,7 @@ export function TaskDetails({
   const { data: members } = useProjectMembers(workspace.id);
 
   const projectId = task?.project_id;
-  const { data: projectTasks } = useQuery<{ data: Task[] }>({
+  const { data: projectTasks, isLoading: projectTasksLoading } = useQuery<{ data: Task[] }>({
     queryKey: ["/projects", projectId, "tasks", "all"],
     queryFn: async () =>
       (await api.get(`/projects/${projectId}/tasks?per_page=100`)).data,
@@ -450,6 +450,36 @@ export function TaskDetails({
                   }
                 />
               </div>
+            </div>
+
+            <div className="grid gap-2">
+              <Label className="flex items-center gap-1.5">
+                <AlertTriangle className="size-3.5" /> Blocked by
+              </Label>
+              {projectTasksLoading ? (
+                <p className="text-sm text-muted-foreground">Loading project tasks…</p>
+              ) : (projectTasks?.data ?? []).filter(item => item.id !== task.id).length ? (
+                <div className="grid max-h-36 gap-1 overflow-y-auto rounded-md border p-2">
+                  {(projectTasks?.data ?? [])
+                    .filter(item => item.id !== task.id)
+                    .map(item => (
+                      <label key={item.id} className="flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-sm hover:bg-accent">
+                        <input
+                          type="checkbox"
+                          checked={parents.includes(item.id)}
+                          onChange={() => void handleDependencyToggle(item.id)}
+                        />
+                        <span className="shrink-0 text-xs text-muted-foreground">TF-{item.id}</span>
+                        <span className="truncate">{item.title}</span>
+                      </label>
+                    ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No other tasks in this project.</p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Select tasks that must be completed before this one.
+              </p>
             </div>
 
             <Button

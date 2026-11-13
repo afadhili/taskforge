@@ -79,6 +79,7 @@ export const KanbanBoard = ({ id, children, className }: KanbanBoardProps) => {
 export type KanbanCardProps<T extends KanbanItemProps = KanbanItemProps> = T & {
     children?: ReactNode;
     className?: string;
+    disabled?: boolean;
 };
 
 export const KanbanCard = <T extends KanbanItemProps = KanbanItemProps>({
@@ -86,9 +87,11 @@ export const KanbanCard = <T extends KanbanItemProps = KanbanItemProps>({
     name,
     children,
     className,
+    disabled = false,
 }: KanbanCardProps<T>) => {
     const { attributes, listeners, setNodeRef, transition, transform, isDragging } = useSortable({
         id,
+        disabled,
     });
     const { activeCardId } = useContext(KanbanContext) as KanbanContextProps;
 
@@ -103,6 +106,7 @@ export const KanbanCard = <T extends KanbanItemProps = KanbanItemProps>({
                 <Card
                     className={cn(
                         "cursor-grab gap-4 rounded-md p-3 shadow-sm",
+                        disabled && "cursor-not-allowed",
                         isDragging && "pointer-events-none cursor-grabbing opacity-30",
                         className,
                     )}

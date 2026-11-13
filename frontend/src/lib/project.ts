@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient, useQueries } from '@tanstack/rea
 import { api } from '@/api'
 import type {
   ProjectsResponse,
-  Member,
+  WorkspaceMember,
   Task,
   TaskDetail,
   ProjectLabel,
@@ -47,7 +47,7 @@ export function useProjectDetail(projectId: number, workspaceId: number) {
 
 export function useProjectMembers(workspaceId: number) {
   const queryKey = makeQueryKey(['/workspaces', workspaceId, 'members'])
-  return useQuery<Member[]>({
+  return useQuery<WorkspaceMember[]>({
     queryKey,
     queryFn: async () => {
       const res = await api.get(`/workspaces/${workspaceId}/members`)

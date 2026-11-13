@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { LogOut, Users } from "lucide-react";
+import { ArrowLeft, LogOut, Users } from "lucide-react";
 import { api } from "@/api";
 import { message } from "@/lib/errors";
 import type { User } from "@/types";
@@ -15,15 +15,26 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export function CreateWorkspace({
   user,
   onCreated,
   onLogout,
+  onCancel,
+  asDialog = false,
 }: {
   user: User;
   onCreated: (ws: { id: number }) => void;
   onLogout: () => void;
+  onCancel: () => void;
+  asDialog?: boolean;
 }) {
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
@@ -43,8 +54,58 @@ export function CreateWorkspace({
     }
   };
 
+  const form = (
+    <form className="grid gap-4" onSubmit={submit}>
+      <div className="grid gap-2">
+        <Label htmlFor="workspace-name">Workspace name</Label>
+        <Input
+          id="workspace-name"
+          required
+          maxLength={120}
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          placeholder="Acme Studio"
+        />
+      </div>
+      {error && (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+      <Button type="submit" className="w-full" disabled={busy}>
+        {busy && <Spinner />}
+        Create workspace
+      </Button>
+    </form>
+  );
+
+  if (asDialog) {
+    return (
+      <Dialog open onOpenChange={(open) => !open && onCancel()}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Create another workspace</DialogTitle>
+            <DialogDescription>
+              Hi {user.name.split(" ")[0]}, give your team a shared home.
+            </DialogDescription>
+          </DialogHeader>
+          {form}
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   return (
     <div className="relative flex min-h-svh flex-col items-center justify-center px-4 py-10">
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="absolute top-4 left-4 text-muted-foreground"
+        onClick={onCancel}
+      >
+        <ArrowLeft /> Back
+      </Button>
       <Button
         type="button"
         variant="ghost"
@@ -66,27 +127,7 @@ export function CreateWorkspace({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form className="grid gap-4" onSubmit={submit}>
-            <div className="grid gap-2">
-              <Label htmlFor="workspace-name">Workspace name</Label>
-              <Input
-                id="workspace-name"
-                required
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                placeholder="Acme Studio"
-              />
-            </div>
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-            <Button type="submit" className="w-full" disabled={busy}>
-              {busy && <Spinner />}
-              Create workspace
-            </Button>
-          </form>
+          {form}
         </CardContent>
       </Card>
     </div>

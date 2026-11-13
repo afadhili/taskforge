@@ -23,7 +23,9 @@ class TaskService
     {
         return DB::transaction(function () use ($actor, $projectId, $attributes): Task {
             $labelIds = $attributes['label_ids'] ?? [];
+            $dependencyIds = $attributes['dependency_ids'] ?? [];
             unset($attributes['label_ids']);
+            unset($attributes['dependency_ids']);
 
             $project = Project::with('workspace')->findOrFail($projectId);
 
@@ -35,9 +37,21 @@ class TaskService
                 throw ValidationException::withMessages(['label_ids' => ['Labels must belong to this workspace.']]);
             }
 
+            if ($dependencyIds !== []) {
+                $dependencies = Task::whereIn('id', $dependencyIds)->get();
+                if ($dependencies->count() !== count($dependencyIds) || $dependencies->contains(fn (Task $item): bool => $item->project_id !== $projectId)) {
+                    throw ValidationException::withMessages(['dependency_ids' => ['Dependencies must be tasks in the same project.']]);
+                }
+            }
+
             $task = Task::create($attributes + ['project_id' => $projectId, 'created_by' => $actor->id]);
 
             $this->activity->forTask($task, $actor, 'created');
+
+            if ($dependencyIds !== []) {
+                $task->dependencies()->sync($dependencyIds);
+                $this->activity->forTask($task, $actor, 'dependencies_updated', ['dependency_ids' => $dependencyIds]);
+            }
 
             if ($labelIds !== []) {
                 $task->labels()->sync($labelIds);
@@ -55,6 +69,15 @@ class TaskService
     {
         return DB::transaction(function () use ($actor, $task, $attributes): Task {
             $old = $task->only(['status', 'assignee_id']);
+
+            if (isset($attributes['status'])
+                && $attributes['status'] !== $task->status
+                && in_array($attributes['status'], ['in_progress', 'in_review', 'done'], true)
+                && $task->dependencies()->where('status', '!=', 'done')->exists()) {
+                throw ValidationException::withMessages([
+                    'status' => ['This task is blocked. Complete its prerequisite tasks before starting or completing it.'],
+                ]);
+            }
 
             if (array_key_exists('assignee_id', $attributes) && $attributes['assignee_id'] !== null && ! $task->date_assigned) {
                 $attributes['date_assigned'] = now()->toDateString();

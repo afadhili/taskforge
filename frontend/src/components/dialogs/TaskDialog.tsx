@@ -1,7 +1,9 @@
 import { useState, type FormEvent } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/api";
+import type { Task } from "@/types";
 import { useApp } from "@/components/app-context";
 import { useProjectMembers } from "@/lib/project";
 import { message } from "@/lib/errors";
@@ -55,8 +57,14 @@ export function TaskDialog({
   const [status, setStatus] = useState<string>("backlog");
   const [priority, setPriority] = useState<string>("medium");
   const [assigneeId, setAssigneeId] = useState<string>("");
+  const [dependencyIds, setDependencyIds] = useState<number[]>([]);
 
   const members = useProjectMembers(workspace.id);
+  const existingTasks = useQuery<{ data: Task[] }>({
+    queryKey: ["/projects", projectId, "tasks", "dependency-options"],
+    queryFn: async () => (await api.get(`/projects/${projectId}/tasks?per_page=100`)).data,
+    enabled: projectId > 0,
+  });
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -75,6 +83,7 @@ export function TaskDialog({
         deadline: raw.deadline || null,
         assignee_id: assigneeId && assigneeId !== "unassigned" ? Number(assigneeId) : null,
         estimate_minutes: Number(raw.estimate_minutes || 0),
+        dependency_ids: dependencyIds,
       });
       toast.success("Task created");
       created();
@@ -180,6 +189,33 @@ export function TaskDialog({
               <Label htmlFor="task-deadline">Deadline</Label>
               <Input id="task-deadline" name="deadline" type="date" />
             </div>
+          </div>
+          <div className="grid gap-2">
+            <Label>Blocked by</Label>
+            {existingTasks.isLoading ? (
+              <p className="text-sm text-muted-foreground">Loading project tasks…</p>
+            ) : (existingTasks.data?.data ?? []).length ? (
+              <div className="grid max-h-36 gap-1 overflow-y-auto rounded-md border p-2">
+                {(existingTasks.data?.data ?? []).map((task) => (
+                  <label key={task.id} className="flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-sm hover:bg-accent">
+                    <input
+                      type="checkbox"
+                      checked={dependencyIds.includes(task.id)}
+                      onChange={(event) => setDependencyIds(current =>
+                        event.target.checked
+                          ? [...current, task.id]
+                          : current.filter(id => id !== task.id),
+                      )}
+                    />
+                    <span className="shrink-0 text-xs text-muted-foreground">TF-{task.id}</span>
+                    <span className="truncate">{task.title}</span>
+                  </label>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No existing project tasks to depend on.</p>
+            )}
+            <p className="text-xs text-muted-foreground">Selected tasks must be completed before this task can proceed.</p>
           </div>
           <div className="grid gap-2">
             <Label htmlFor="task-estimate">Estimate (minutes)</Label>

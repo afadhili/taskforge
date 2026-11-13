@@ -87,6 +87,15 @@ class WorkspaceController extends Controller
         return response()->json(['message' => 'Role updated.']);
     }
 
+    public function removeMember(Workspace $workspace, User $member): JsonResponse
+    {
+        $this->authorize('removeMember', [$workspace, $member]);
+
+        $this->service->removeMember($workspace, $member);
+
+        return response()->json([], 204);
+    }
+
     public function labels(Workspace $workspace): JsonResponse
     {
         $this->authorize('view', $workspace);

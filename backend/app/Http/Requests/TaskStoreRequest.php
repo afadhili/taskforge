@@ -32,6 +32,8 @@ class TaskStoreRequest extends FormRequest
             'estimate_minutes' => ['sometimes', 'integer', 'min:0', 'max:100000'],
             'label_ids' => ['sometimes', 'array', 'max:20'],
             'label_ids.*' => ['integer', 'exists:task_labels,id'],
+            'dependency_ids' => ['sometimes', 'array', 'max:100'],
+            'dependency_ids.*' => ['integer', 'distinct', 'exists:tasks,id'],
         ];
     }
 }

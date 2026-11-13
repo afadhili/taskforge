@@ -9,7 +9,7 @@ type User = {
   has_custom_avatar?: boolean;
   oauth_provider?: "google" | "github" | null;
 };
-type Workspace = { id: number; name: string; slug?: string };
+type Workspace = { id: number; name: string; slug?: string; role?: "owner" | "admin" | "member" | "viewer" };
 
 type AppDialog =
   { kind: "project"; project?: Project } | { kind: "task" } | null;
@@ -20,6 +20,8 @@ export type AppContextValue = {
   signOut: () => Promise<void>;
   workspace: Workspace;
   workspaces: Workspace[];
+  canCreateWorkspace: boolean;
+  openCreateWorkspace: () => void;
   setWorkspaceId: (id: number) => void;
   project?: Project;
   projects: Project[];
