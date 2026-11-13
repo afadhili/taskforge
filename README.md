@@ -2,6 +2,18 @@
 
 TaskForge is a team workspace for planning projects and tracking day to day work. Teams can organize work into projects, move tasks through a shared board, coordinate ownership and deadlines, and see how work is progressing across the workspace.
 
+[View the GitHub repository](https://github.com/afadhili/taskforge)
+
+## Preview
+
+| Landing page | Task board |
+| --- | --- |
+| ![TaskForge landing page](screenshots/landing-page.png) | ![TaskForge task board](screenshots/tasks.png) |
+
+| Sign up | AI assistant |
+| --- | --- |
+| ![TaskForge sign-up page](screenshots/sign-up.png) | ![TaskForge AI assistant](screenshots/assistant.png) |
+
 ## What you can do
 
 - Create workspaces, invite teammates, and manage access with owner, admin, member, and viewer roles.
