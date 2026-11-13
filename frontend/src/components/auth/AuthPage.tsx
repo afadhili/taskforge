@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
 import { Check, Command, KanbanSquare, Sparkles, Users } from "lucide-react";
 import { api, setToken } from "@/api";
@@ -60,7 +60,10 @@ function GoogleIcon() {
 
 export function AuthPage() {
   const navigate = useNavigate();
-  const [mode, setMode] = useState<AuthMode>("login");
+  const [searchParams] = useSearchParams();
+  const [mode, setMode] = useState<AuthMode>(() =>
+    searchParams.get("mode") === "register" ? "register" : "login",
+  );
   const [oauthBusy, setOauthBusy] = useState<"google" | "github" | null>(null);
   const [oauthError, setOauthError] = useState("");
 
@@ -72,7 +75,7 @@ export function AuthPage() {
     onSuccess: (result) => {
       setToken(result.data.token);
       localStorage.setItem("tf_user", JSON.stringify(result.data.user));
-      navigate("/", { replace: true });
+      navigate("/board", { replace: true });
     },
   });
 

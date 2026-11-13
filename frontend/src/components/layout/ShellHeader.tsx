@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useSidebar } from "@/components/ui/sidebar";
 
 const PAGE_TITLES: Record<string, string> = {
-  "/": "Board",
+  "/board": "Board",
   "/projects": "Projects",
   "/overview": "Overview",
   "/tasks": "Task list",
@@ -27,14 +27,16 @@ export function ShellHeader() {
   }
 
   return (
-    <header className="sticky top-0 z-10 flex h-12 items-center gap-3 border-b border-border bg-background/80 px-4 backdrop-blur">
-      <Button variant="ghost" size="icon" className="size-7 lg:hidden" onClick={toggleSidebar}>
-        <PanelLeft />
+    <header className="sticky top-0 z-10 flex h-14 items-center gap-3 border-b border-border/80 bg-background/90 px-4 backdrop-blur-xl sm:px-6">
+      <Button variant="ghost" size="icon" className="size-9 rounded-xl lg:hidden" onClick={toggleSidebar} aria-label="Open navigation">
+        <PanelLeft className="size-4" />
       </Button>
-      <div className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
-        <span className="truncate">{app.workspace.name}</span>
-        <span className="text-border">/</span>
-        <span className="truncate font-medium text-foreground">{title}</span>
+      <div className="flex min-w-0 items-center gap-2.5 text-sm">
+        <span className="hidden truncate text-xs font-medium text-muted-foreground sm:inline">
+          {app.workspace.name}
+        </span>
+        <span className="hidden text-border sm:inline">/</span>
+        <span className="truncate font-semibold tracking-tight text-foreground">{title}</span>
       </div>
       <div className="ml-auto flex items-center gap-1">
         <NotificationsMenu />

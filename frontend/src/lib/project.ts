@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, useQueries } from '@tanstack/react-query'
 import { api } from '@/api'
 import type {
   ProjectsResponse,
@@ -81,6 +81,26 @@ export function useProjectAnalytics(projectId: number) {
     },
     enabled: !!projectId,
   })
+}
+
+export function useTasksForProjects(projectIds: number[]) {
+  const queries = useQueries({
+    queries: projectIds.map((projectId) => ({
+      queryKey: ['tasks', projectId],
+      queryFn: async () => {
+        const res = await api.get(`/projects/${projectId}/tasks?per_page=100`)
+        return res.data.data as Task[]
+      },
+    })),
+  })
+
+  return {
+    data: queries.flatMap((query) => query.data ?? []),
+    isLoading: queries.some((query) => query.isLoading),
+    isError: queries.some((query) => query.isError),
+    error: queries.find((query) => query.error)?.error,
+    refetch: () => Promise.all(queries.map((query) => query.refetch())),
+  }
 }
 
 // ── Task collection ───────────────────────────────────────────────────

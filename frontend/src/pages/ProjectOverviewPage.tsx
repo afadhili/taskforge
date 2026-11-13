@@ -161,7 +161,7 @@ export function ProjectOverviewPage() {
             variant="outline"
             onClick={() => {
               app.setProjectId(project.id);
-              navigate("/");
+              navigate("/board");
             }}
           >
             <Table2 data-slot="icon" /> Open board

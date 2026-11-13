@@ -49,7 +49,7 @@ export function AcceptInvitePage() {
       localStorage.setItem("tf_user", JSON.stringify(result.user));
     }
     localStorage.setItem("tf_workspace", String(result.workspace_id));
-    navigate("/", { replace: true });
+    navigate("/board", { replace: true });
   };
 
   const submit = (event: FormEvent<HTMLFormElement>) => {

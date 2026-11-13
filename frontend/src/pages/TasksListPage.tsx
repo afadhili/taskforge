@@ -101,7 +101,7 @@ export function TasksListPage() {
           </Empty>
         </div>
       ) : (
-        <TasksTableView projectId={project.id} tasks={filtered} />
+        <TasksTableView tasks={filtered} />
       )}
     </div>
   );

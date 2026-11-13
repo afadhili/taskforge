@@ -11,15 +11,15 @@ class AnalyticsService
     {
         $tasks = $project->tasks();
 
-        $total = $tasks->count();
-        $done = $tasks->where('status', 'done')->count();
-        $overdue = $tasks
+        $total = (clone $tasks)->count();
+        $done = (clone $tasks)->where('status', 'done')->count();
+        $overdue = (clone $tasks)
             ->whereNotNull('deadline')
             ->whereDate('deadline', '<', now()->toDateString())
             ->where('status', '!=', 'done')
             ->count();
 
-        $status = $tasks
+        $status = (clone $tasks)
             ->selectRaw('status, count(*) as count')
             ->groupBy('status')
             ->pluck('count', 'status');

@@ -67,7 +67,7 @@ export function OverviewPage() {
               "A clear view of the work moving through this project."}
           </p>
         </div>
-        <Button onClick={() => navigate("/")} disabled={!project}>
+        <Button onClick={() => navigate("/board")} disabled={!project}>
           <KanbanSquare data-slot="icon" /> Open board
         </Button>
       </div>

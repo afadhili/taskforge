@@ -84,6 +84,12 @@ export function AppShell() {
   const [projectId, setProjectIdState] = useState(() =>
     Number(localStorage.getItem("tf_project") || 0),
   );
+  const [projectScopeId, setProjectScopeIdState] = useState<number | null | undefined>(() => {
+    const savedScope = localStorage.getItem("tf_project_scope");
+    if (savedScope === "all") return null;
+    if (savedScope) return Number(savedScope);
+    return undefined;
+  });
   const [search, setSearch] = useState("");
   const [dialog, setDialog] = useState<AppDialog>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -199,6 +205,8 @@ export function AppShell() {
       localStorage.setItem("tf_workspace", String(id));
       setWorkspaceIdState(id);
       setProjectIdState(0);
+      setProjectScopeIdState(undefined);
+      localStorage.removeItem("tf_project_scope");
       qc.invalidateQueries({ queryKey: ["projects"] });
     },
     project,
@@ -206,6 +214,13 @@ export function AppShell() {
     setProjectId: (id) => {
       localStorage.setItem("tf_project", String(id));
       setProjectIdState(id);
+      localStorage.setItem("tf_project_scope", String(id));
+      setProjectScopeIdState(id);
+    },
+    projectScopeId: projectScopeId === undefined ? project?.id ?? null : projectScopeId,
+    setProjectScopeId: (id) => {
+      localStorage.setItem("tf_project_scope", id === null ? "all" : String(id));
+      setProjectScopeIdState(id);
     },
     search,
     setSearch,
@@ -292,7 +307,7 @@ export function AppShell() {
           onDragEnd={() => setDraggingDelete(null)}
         >
           <AppSidebar />
-          <div className="flex min-w-0 flex-1 flex-col">
+          <div className="workspace-canvas flex min-w-0 flex-1 flex-col">
             <ShellHeader />
             <Outlet />
           </div>
@@ -375,7 +390,7 @@ export function AppShell() {
               context.closeDialog();
               context.setProjectId(item.id);
               qc.invalidateQueries({ queryKey: ["projects", workspace.id] });
-              navigate("/");
+              navigate("/board");
             }}
           />
         )}

@@ -40,7 +40,7 @@ export function OAuthCallback() {
         if (!active) return;
         setToken(data.token);
         localStorage.setItem("tf_user", JSON.stringify(data.user));
-        window.location.replace("/");
+        window.location.replace("/board");
       })
       .catch((reason) => {
         if (active) setError(message(reason).message);

@@ -24,6 +24,8 @@ export type AppContextValue = {
   project?: Project;
   projects: Project[];
   setProjectId: (id: number) => void;
+  projectScopeId: number | null;
+  setProjectScopeId: (id: number | null) => void;
   search: string;
   setSearch: (query: string) => void;
   dialog: AppDialog;

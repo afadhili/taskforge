@@ -86,7 +86,7 @@ export function ProjectsPage() {
                 }`}
                 onClick={() => {
                   app.setProjectId(project.id);
-                  navigate("/");
+                  navigate("/board");
                 }}
               >
                 <CardContent className="flex min-h-40 flex-col p-4">

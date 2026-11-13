@@ -113,6 +113,7 @@ export type Toast = {
 
 export type Task = {
   id: number;
+  project_id: number;
   title: string;
   description?: string;
   status: "backlog" | "todo" | "in_progress" | "in_review" | "done";

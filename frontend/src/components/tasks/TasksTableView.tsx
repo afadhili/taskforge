@@ -32,10 +32,8 @@ const PRIORITY_VARIANT: Record<Task["priority"], BadgeVariant> = {
 };
 
 export function TasksTableView({
-  projectId,
   tasks,
 }: {
-  projectId: number;
   tasks: Task[];
 }) {
   const navigate = useNavigate();
@@ -46,7 +44,7 @@ export function TasksTableView({
       await api.patch(`/tasks/${taskId}`, { status });
     },
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ["tasks", projectId] });
+      void qc.invalidateQueries({ queryKey: ["tasks"] });
       toast.success("Status updated");
     },
     onError: (error) => toast.error(message(error).message),
@@ -70,7 +68,7 @@ export function TasksTableView({
               <tr
                 key={task.id}
                 className="cursor-pointer border-b border-border/60 transition-colors last:border-0 hover:bg-muted/50"
-                onClick={() => navigate(`/projects/${projectId}/tasks/${task.id}`)}
+                onClick={() => navigate(`/projects/${task.project_id}/tasks/${task.id}`)}
               >
                 <td className="px-4 py-3">
                   <div className="font-medium">{task.title}</div>

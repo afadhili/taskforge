@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   CircleIcon,
   FolderKanban,
@@ -35,6 +35,8 @@ import {
 import { toast } from "sonner";
 import type { Task } from "@/types";
 import { TasksTableView } from "@/components/tasks/TasksTableView";
+import { ProjectScopeSelect } from "@/components/ProjectScopeSelect";
+import { useTasksForProjects } from "@/lib/project";
 
 const LANES = [
   { key: "backlog", label: "Backlog", dot: "bg-muted-foreground/40" },
@@ -65,17 +67,10 @@ export function BoardPage() {
   const [dragging, setDragging] = useState<number | null>(null);
   const [hoverLane, setHoverLane] = useState<string | null>(null);
   const [listView, setListView] = useState(false);
-
-  const project = app.project;
-
-  const tasks = useQuery({
-    queryKey: ["tasks", project?.id],
-    enabled: !!project,
-    queryFn: async () => {
-      const res = await api.get(`/projects/${project!.id}/tasks?per_page=100`);
-      return (res.data.data ?? []) as Task[];
-    },
-  });
+  const projectScope = app.projectScopeId === null ? "all" : String(app.projectScopeId);
+  const project = app.projects.find((item) => item.id === app.projectScopeId);
+  const projectIds = project ? [project.id] : app.projects.map((item) => item.id);
+  const tasks = useTasksForProjects(projectIds);
 
   const visible = (tasks.data ?? []).filter((task) =>
     `${task.title} ${task.description ?? ""}`
@@ -87,7 +82,7 @@ export function BoardPage() {
     if (task.status === status) return;
     try {
       await api.patch(`/tasks/${task.id}`, { status });
-      await qc.invalidateQueries({ queryKey: ["tasks", project?.id] });
+      await qc.invalidateQueries({ queryKey: ["tasks"] });
       toast.success(
         `Moved "${task.title}" to ${LANES.find((l) => l.key === status)?.label ?? status}`,
       );
@@ -96,7 +91,7 @@ export function BoardPage() {
     }
   };
 
-  if (!project) {
+  if (app.projects.length === 0) {
     return (
       <div className="flex min-h-[70vh] items-center justify-center p-6">
         <Empty>
@@ -105,9 +100,7 @@ export function BoardPage() {
               <FolderKanban />
             </EmptyMedia>
             <EmptyTitle>No project selected</EmptyTitle>
-            <EmptyDescription>
-              Create a project to start planning and tracking work on the board.
-            </EmptyDescription>
+            <EmptyDescription>Create a project to start planning and tracking work on the board.</EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
             <Button onClick={() => app.openProjectDialog()}>
@@ -132,28 +125,30 @@ export function BoardPage() {
       <div className="mb-5 flex flex-wrap items-start gap-3">
         <div className="mr-auto">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Badge variant="secondary" className="font-semibold">
-              {project.key}
-            </Badge>
-            Project · Updated just now
+            {project && <Badge variant="secondary" className="font-semibold">{project.key}</Badge>}
+            {project ? "Project · Updated just now" : "Workspace · All projects"}
           </div>
           <h1 className="mt-1.5 text-2xl font-semibold tracking-tight">
-            {project.name}
+            {project?.name ?? "All projects"}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {project.description ||
+            {project?.description ||
               "A shared space for your team to plan, track, and ship great work."}
           </p>
         </div>
-        <Button
+        <ProjectScopeSelect
+          value={projectScope}
+          onValueChange={(value) => app.setProjectScopeId(value === "all" ? null : Number(value))}
+        />
+        {project && <Button
           variant="outline"
           onClick={() => app.openProjectDialog(project)}
         >
           <MoreHorizontal data-slot="icon" /> Manage
-        </Button>
-        <Button onClick={() => app.openTaskDialog()}>
+        </Button>}
+        {project && <Button onClick={() => app.openTaskDialog()}>
           <Plus data-slot="icon" /> Add task
-        </Button>
+        </Button>}
       </div>
 
       <div className="mb-5 grid grid-cols-2 gap-3 xl:grid-cols-4">
@@ -235,7 +230,7 @@ export function BoardPage() {
         )
       ) : listView ? (
         visible.length ? (
-          <TasksTableView projectId={project.id} tasks={visible} />
+          <TasksTableView tasks={visible} />
         ) : (
           <div className="rounded-lg border border-dashed p-8 text-center">
             <p className="font-medium">No tasks match</p>
@@ -325,7 +320,7 @@ export function BoardPage() {
                           title="Edit task"
                           draggable={false}
                           onClick={() =>
-                            navigate(`/projects/${project.id}/tasks/${task.id}`)
+                            navigate(`/projects/${task.project_id}/tasks/${task.id}`)
                           }
                         >
                           <Pencil />
@@ -335,7 +330,7 @@ export function BoardPage() {
                         type="button"
                         className="block w-full text-left text-[13px] leading-snug font-medium hover:underline"
                         onClick={() =>
-                          navigate(`/projects/${project.id}/tasks/${task.id}`)
+                          navigate(`/projects/${task.project_id}/tasks/${task.id}`)
                         }
                       >
                         {task.title}
