@@ -14,6 +14,7 @@ import {
   Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useCurrentSession } from "@/lib/session";
 
 const FEATURES = [
   {
@@ -179,6 +180,14 @@ function ProductPreview() {
 }
 
 export function LandingPage() {
+  const { user, isChecking } = useCurrentSession();
+  const actionHref = user ? "/board" : "/login?mode=register";
+  const actionLabel = user
+    ? "Go to dashboard"
+    : isChecking
+      ? "Checking session…"
+      : "Get started";
+
   return (
     <main className="overflow-hidden bg-background text-foreground">
       <header className="sticky top-0 z-30 border-b border-border/70 bg-background/90 backdrop-blur-xl">
@@ -189,11 +198,13 @@ export function LandingPage() {
             <a className="transition-colors hover:text-foreground" href="#how-it-works">How it works</a>
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
-            <Link to="/login" className="rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
-              Sign in
-            </Link>
-            <Button render={<Link to="/login?mode=register" />} className="h-9 rounded-xl px-3 sm:px-4">
-                Get started <ArrowRight className="ml-1.5 size-4" />
+            {!user && !isChecking && (
+              <Link to="/login" className="rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
+                Sign in
+              </Link>
+            )}
+            <Button render={<Link to={actionHref} />} disabled={isChecking} className="h-9 rounded-xl px-3 sm:px-4">
+                {actionLabel} <ArrowRight className="ml-1.5 size-4" />
             </Button>
           </div>
         </nav>
@@ -213,8 +224,8 @@ export function LandingPage() {
               TaskForge gives your team one clear place to plan projects, move tasks forward, and see what needs attention.
             </p>
             <div className="mt-8 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">
-              <Button render={<Link to="/login?mode=register" />} size="lg" className="h-12 rounded-xl px-6 text-sm shadow-md shadow-primary/15">
-                  Start with your team <ArrowRight className="ml-2 size-4" />
+              <Button render={<Link to={actionHref} />} disabled={isChecking} size="lg" className="h-12 rounded-xl px-6 text-sm shadow-md shadow-primary/15">
+                  {user ? "Go to dashboard" : isChecking ? "Checking session…" : "Start with your team"} <ArrowRight className="ml-2 size-4" />
               </Button>
               <a href="#how-it-works" className="inline-flex h-12 items-center justify-center gap-2 rounded-xl px-5 text-sm font-semibold text-foreground transition-colors hover:bg-muted">
                 See how it works <ChevronRight className="size-4" />
@@ -334,8 +345,8 @@ export function LandingPage() {
               <h2 className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight sm:text-4xl">Bring your team’s work into focus.</h2>
               <p className="mt-3 max-w-xl text-sm leading-6 text-background/70">Set up a workspace, bring your projects together, and give every task a place to move.</p>
             </div>
-            <Button render={<Link to="/login?mode=register" />} size="lg" className="h-12 rounded-xl bg-background px-5 text-foreground shadow-none hover:bg-background/90">
-              Get started <MoveRight className="ml-2 size-4" />
+            <Button render={<Link to={actionHref} />} disabled={isChecking} size="lg" className="h-12 rounded-xl bg-background px-5 text-foreground shadow-none hover:bg-background/90">
+              {user ? "Go to dashboard" : isChecking ? "Checking session…" : "Get started"} <MoveRight className="ml-2 size-4" />
             </Button>
           </div>
         </div>
@@ -345,7 +356,9 @@ export function LandingPage() {
         <div className="mx-auto flex max-w-7xl flex-col gap-4 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
           <Brand />
           <p>Project work, made easier to follow.</p>
-          <Link to="/login" className="font-medium transition-colors hover:text-foreground">Sign in <ChevronRight className="inline size-3.5" /></Link>
+          <Link to={user ? "/board" : "/login"} className="font-medium transition-colors hover:text-foreground">
+            {user ? "Go to dashboard" : "Sign in"} <ChevronRight className="inline size-3.5" />
+          </Link>
         </div>
       </footer>
     </main>

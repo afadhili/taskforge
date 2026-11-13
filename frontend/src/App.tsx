@@ -13,12 +13,20 @@ import { AssistantPage } from "@/pages/AssistantPage";
 import { ProjectOverviewPage } from "@/pages/ProjectOverviewPage";
 import { TaskDetailPage } from "@/pages/TaskDetailPage";
 import { LandingPage } from "@/pages/LandingPage";
+import { GuestOnlyRoute } from "@/components/auth/GuestOnlyRoute";
 
 export default function App() {
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
-      <Route path="/login" element={<AuthPage />} />
+      <Route
+        path="/login"
+        element={
+          <GuestOnlyRoute>
+            <AuthPage />
+          </GuestOnlyRoute>
+        }
+      />
       <Route path="/oauth/:provider/callback" element={<OAuthCallback />} />
       <Route path="/invite/:token" element={<AcceptInvitePage />} />
       <Route element={<AppShell />}>
