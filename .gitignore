@@ -1,0 +1,18 @@
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+
+# Dependencies and generated assets
+**/node_modules/
+backend/vendor/
+backend/storage/
+backend/bootstrap/cache/*.php
+backend/public/build/
+backend/public/hot
+frontend/dist/
+
+# Local database backups and artifacts
+*.dump
+*.sql
+.DS_Store

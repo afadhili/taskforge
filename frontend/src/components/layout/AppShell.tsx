@@ -1,0 +1,400 @@
+import { useEffect, useMemo, useState } from "react";
+import { isAxiosError } from "axios";
+import { Navigate, Outlet, useNavigate } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Trash2 } from "lucide-react";
+import { api, setToken } from "@/api";
+import { message } from "@/lib/errors";
+import { toast } from "sonner";
+import type { Project } from "@/types";
+import {
+  AppProvider,
+  type AppContextValue,
+  type AppDialog,
+} from "@/components/app-context";
+import { AppSidebar } from "@/components/layout/AppSidebar";
+import { ShellHeader } from "@/components/layout/ShellHeader";
+import { ProjectDialog } from "@/components/dialogs/ProjectDialog";
+import { TaskDialog } from "@/components/dialogs/TaskDialog";
+import { SettingsDialog } from "@/components/dialogs/SettingsDialog";
+import { CreateWorkspace } from "@/components/auth/CreateWorkspace";
+import { Spinner } from "@/components/ui/spinner";
+import { QueryFailure } from "@/components/layout/QueryFailure";
+import { SidebarProvider } from "@/components/ui/sidebar";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
+type User = {
+  id: number;
+  name: string;
+  email: string;
+  avatar_url?: string | null;
+  has_custom_avatar?: boolean;
+  oauth_provider?: "google" | "github" | null;
+};
+type Workspace = { id: number; name: string; slug?: string };
+type DeleteDropItem = { type: "project" | "task"; id: number; name: string };
+const DELETE_DRAG_TYPE = "application/x-taskforge-delete-item";
+function readStoredUser(): User | null {
+  try {
+    return JSON.parse(localStorage.getItem("tf_user") || "null") as User | null;
+  } catch {
+    return null;
+  }
+}
+
+export function AppShell() {
+  const navigate = useNavigate();
+  const qc = useQueryClient();
+
+  const [user, setUserState] = useState<User | null>(readStoredUser);
+  const authUser = useQuery({
+    queryKey: ["auth-user"],
+    enabled: !!user,
+    queryFn: async () => (await api.get("/auth/me")).data.data as User,
+  });
+  const authUnauthorized =
+    isAxiosError(authUser.error) && authUser.error.response?.status === 401;
+  const currentUser = authUser.data ?? user;
+
+  useEffect(() => {
+    if (authUser.data) {
+      localStorage.setItem("tf_user", JSON.stringify(authUser.data));
+    }
+  }, [authUser.data]);
+
+  useEffect(() => {
+    if (!authUnauthorized) return;
+    setToken(null);
+    localStorage.removeItem("tf_user");
+    qc.clear();
+  }, [authUnauthorized, qc]);
+
+  const [workspaceId, setWorkspaceIdState] = useState(() =>
+    Number(localStorage.getItem("tf_workspace") || 0),
+  );
+  const [projectId, setProjectIdState] = useState(() =>
+    Number(localStorage.getItem("tf_project") || 0),
+  );
+  const [search, setSearch] = useState("");
+  const [dialog, setDialog] = useState<AppDialog>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [draggingDelete, setDraggingDelete] = useState<
+    DeleteDropItem["type"] | null
+  >(null);
+  const [pendingDelete, setPendingDelete] = useState<DeleteDropItem | null>(
+    null,
+  );
+  const [deleting, setDeleting] = useState(false);
+
+  const workspaces = useQuery({
+    queryKey: ["workspaces"],
+    enabled: !!user && authUser.isSuccess,
+    queryFn: async () =>
+      (await api.get("/workspaces")).data.data as Workspace[],
+  });
+
+  const workspace = useMemo(
+    () =>
+      workspaces.data?.find((w) => w.id === workspaceId) ??
+      workspaces.data?.[0],
+    [workspaces.data, workspaceId],
+  );
+
+  useEffect(() => {
+    if (workspace && workspace.id !== workspaceId) {
+      localStorage.setItem("tf_workspace", String(workspace.id));
+      setWorkspaceIdState(workspace.id);
+      setProjectIdState(0);
+    }
+  }, [workspace, workspaceId]);
+
+  const projects = useQuery({
+    queryKey: ["projects", workspace?.id],
+    enabled: !!workspace,
+    queryFn: async () =>
+      (await api.get(`/workspaces/${workspace!.id}/projects`)).data
+        .data as Project[],
+  });
+
+  const project = useMemo(
+    () => projects.data?.find((p) => p.id === projectId) ?? projects.data?.[0],
+    [projects.data, projectId],
+  );
+
+  useEffect(() => {
+    if (project && project.id !== projectId) {
+      localStorage.setItem("tf_project", String(project.id));
+      setProjectIdState(project.id);
+    }
+  }, [project, projectId]);
+
+  const confirmDelete = async () => {
+    if (!pendingDelete || !workspace) return;
+    setDeleting(true);
+    try {
+      if (pendingDelete.type === "task") {
+        await api.delete(`/tasks/${pendingDelete.id}`);
+        qc.removeQueries({ queryKey: ["/tasks", pendingDelete.id] });
+        await qc.invalidateQueries({ queryKey: ["tasks"] });
+      } else {
+        const deletingCurrentProject = project?.id === pendingDelete.id;
+        await api.delete(`/projects/${pendingDelete.id}`);
+        await qc.invalidateQueries({ queryKey: ["projects", workspace.id] });
+        await qc.invalidateQueries({ queryKey: ["tasks"] });
+        if (deletingCurrentProject) {
+          const remainingProjects =
+            qc.getQueryData<Project[]>(["projects", workspace.id]) ?? [];
+          const nextProject = remainingProjects[0];
+          if (nextProject) {
+            localStorage.setItem("tf_project", String(nextProject.id));
+            setProjectIdState(nextProject.id);
+          } else {
+            localStorage.removeItem("tf_project");
+            setProjectIdState(0);
+          }
+          navigate("/projects");
+        }
+      }
+      toast.success(
+        `${pendingDelete.type === "task" ? "Task" : "Project"} deleted`,
+      );
+      setPendingDelete(null);
+    } catch (error) {
+      const failure = message(error);
+      toast.error(failure.message, { description: failure.hint });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const signOut = async () => {
+    await api.post("/auth/logout").catch(() => undefined);
+    delete api.defaults.headers.Authorization;
+    localStorage.removeItem("tf_user");
+    localStorage.removeItem("tf_token");
+    qc.clear();
+    navigate("/login");
+  };
+
+  const context: AppContextValue = {
+    user: currentUser ?? { id: 0, name: "", email: "" },
+    setUser: (next) => {
+      localStorage.setItem("tf_user", JSON.stringify(next));
+      setUserState(next);
+      qc.setQueryData(["auth-user"], next);
+    },
+    signOut,
+    workspace: workspace ?? { id: 0, name: "" },
+    workspaces: workspaces.data ?? [],
+    setWorkspaceId: (id) => {
+      localStorage.setItem("tf_workspace", String(id));
+      setWorkspaceIdState(id);
+      setProjectIdState(0);
+      qc.invalidateQueries({ queryKey: ["projects"] });
+    },
+    project,
+    projects: projects.data ?? [],
+    setProjectId: (id) => {
+      localStorage.setItem("tf_project", String(id));
+      setProjectIdState(id);
+    },
+    search,
+    setSearch,
+    dialog,
+    openProjectDialog: (editProject) =>
+      setDialog({ kind: "project", project: editProject }),
+    openTaskDialog: () => setDialog({ kind: "task" }),
+    closeDialog: () => setDialog(null),
+    settingsOpen,
+    openSettings: () => setSettingsOpen(true),
+    closeSettings: () => setSettingsOpen(false),
+  };
+
+  if (!user || authUnauthorized) return <Navigate to="/login" replace />;
+
+  if (authUser.isLoading) {
+    return (
+      <div className="flex min-h-svh items-center justify-center gap-3 text-muted-foreground">
+        <Spinner className="size-5" /> Checking your session…
+      </div>
+    );
+  }
+
+  if (authUser.isError) {
+    return (
+      <QueryFailure
+        title="Couldn't verify your session"
+        error={authUser.error}
+        retry={() => authUser.refetch()}
+      />
+    );
+  }
+
+  if (workspaces.isLoading) {
+    return (
+      <div className="flex min-h-svh items-center justify-center gap-3 text-muted-foreground">
+        <Spinner className="size-5" /> Loading your workspace…
+      </div>
+    );
+  }
+
+  if (workspaces.isError) {
+    return (
+      <QueryFailure
+        title="Couldn't load your workspace"
+        error={workspaces.error}
+        retry={() => workspaces.refetch()}
+      />
+    );
+  }
+
+  if (!workspace) {
+    return (
+      <CreateWorkspace
+        user={user}
+        onCreated={(item) => {
+          localStorage.setItem("tf_workspace", String(item.id));
+          setWorkspaceIdState(item.id);
+          qc.invalidateQueries({ queryKey: ["workspaces"] });
+        }}
+        onLogout={signOut}
+      />
+    );
+  }
+
+  return (
+    <AppProvider value={context}>
+      <SidebarProvider>
+        <div
+          className="flex min-h-svh w-full"
+          onDragStart={(event) => {
+            if (event.dataTransfer.types.includes(DELETE_DRAG_TYPE)) {
+              setDraggingDelete("task");
+              try {
+                const item = JSON.parse(
+                  event.dataTransfer.getData(DELETE_DRAG_TYPE),
+                ) as DeleteDropItem;
+                setDraggingDelete(item.type);
+              } catch {
+                setDraggingDelete(null);
+              }
+            }
+          }}
+          onDragEnd={() => setDraggingDelete(null)}
+        >
+          <AppSidebar />
+          <div className="flex min-w-0 flex-1 flex-col">
+            <ShellHeader />
+            <Outlet />
+          </div>
+        </div>
+
+        {draggingDelete && (
+          <div
+            role="button"
+            aria-label={`Drop ${draggingDelete} here to delete`}
+            className="fixed right-3 top-1/2 z-40 flex min-h-32 w-24 -translate-y-1/2 flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-destructive bg-destructive/10 p-3 text-center text-destructive shadow-lg transition-colors data-[drag-over=true]:bg-destructive/20"
+            onDragOver={(event) => {
+              event.preventDefault();
+              event.dataTransfer.dropEffect = "move";
+              event.currentTarget.dataset.dragOver = "true";
+            }}
+            onDragLeave={(event) => {
+              delete event.currentTarget.dataset.dragOver;
+            }}
+            onDrop={(event) => {
+              event.preventDefault();
+              delete event.currentTarget.dataset.dragOver;
+              setDraggingDelete(null);
+              try {
+                const item = JSON.parse(
+                  event.dataTransfer.getData(DELETE_DRAG_TYPE),
+                ) as DeleteDropItem;
+                if (
+                  (item.type === "task" || item.type === "project") &&
+                  Number.isInteger(item.id)
+                ) {
+                  setPendingDelete(item);
+                }
+              } catch {
+                toast.error("Could not identify the item to delete");
+              }
+            }}
+          >
+            <Trash2 className="size-6" />
+            <span className="text-xs font-semibold">Drop to delete</span>
+            <span className="text-[10px]">
+              {draggingDelete === "project" ? "Project" : "Task"}
+            </span>
+          </div>
+        )}
+
+        <AlertDialog
+          open={!!pendingDelete}
+          onOpenChange={(open) => {
+            if (!open && !deleting) setPendingDelete(null);
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete {pendingDelete?.type}?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {pendingDelete?.type === "project"
+                  ? `“${pendingDelete.name}” and all of its tasks will be permanently deleted.`
+                  : `“${pendingDelete?.name}” will be permanently deleted.`}{" "}
+                This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                variant="destructive"
+                disabled={deleting}
+                onClick={() => void confirmDelete()}
+              >
+                {deleting ? "Deleting…" : "Delete"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {dialog?.kind === "project" && (
+          <ProjectDialog
+            project={dialog.project}
+            close={context.closeDialog}
+            created={(item) => {
+              context.closeDialog();
+              context.setProjectId(item.id);
+              qc.invalidateQueries({ queryKey: ["projects", workspace.id] });
+              navigate("/");
+            }}
+          />
+        )}
+        {dialog?.kind === "task" && project && (
+          <TaskDialog
+            projectId={project.id}
+            close={context.closeDialog}
+            created={() => {
+              context.closeDialog();
+              qc.invalidateQueries({ queryKey: ["tasks", project.id] });
+              qc.invalidateQueries({ queryKey: ["projects", workspace.id] });
+            }}
+          />
+        )}
+        <SettingsDialog
+          open={context.settingsOpen}
+          close={context.closeSettings}
+        />
+      </SidebarProvider>
+    </AppProvider>
+  );
+}
