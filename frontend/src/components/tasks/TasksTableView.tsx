@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { api } from "@/api";
@@ -37,6 +37,7 @@ export function TasksTableView({
   tasks: Task[];
 }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const qc = useQueryClient();
 
   const updateStatus = useMutation({
@@ -53,11 +54,12 @@ export function TasksTableView({
   return (
     <Card className="py-0">
       <CardContent className="overflow-x-auto p-0">
-        <table className="w-full min-w-[640px] text-sm">
+        <table className="w-full min-w-[760px] text-sm">
           <thead>
             <tr className="border-b border-border text-left text-xs text-muted-foreground">
               <th className="px-4 py-3 font-medium">Task</th>
               <th className="px-4 py-3 font-medium">Assignee</th>
+              <th className="px-4 py-3 font-medium">Date assigned</th>
               <th className="px-4 py-3 font-medium">Priority</th>
               <th className="px-4 py-3 font-medium">Status</th>
               <th className="px-4 py-3 font-medium">Deadline</th>
@@ -68,7 +70,7 @@ export function TasksTableView({
               <tr
                 key={task.id}
                 className="cursor-pointer border-b border-border/60 transition-colors last:border-0 hover:bg-muted/50"
-                onClick={() => navigate(`/projects/${task.project_id}/tasks/${task.id}`)}
+                onClick={() => navigate(`/projects/${task.project_id}/tasks/${task.id}`, { state: { backgroundLocation: location } })}
               >
                 <td className="px-4 py-3">
                   <div className="font-medium">{task.title}</div>
@@ -76,6 +78,9 @@ export function TasksTableView({
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">
                   {task.assignee?.name ?? "Unassigned"}
+                </td>
+                <td className="px-4 py-3 text-muted-foreground">
+                  {task.date_assigned ?? "—"}
                 </td>
                 <td className="px-4 py-3">
                   <Badge variant={PRIORITY_VARIANT[task.priority]} className="capitalize">

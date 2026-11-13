@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
 import { AuthPage } from "@/components/auth/AuthPage";
 import { OAuthCallback } from "@/components/auth/OAuthCallback";
@@ -11,13 +11,20 @@ import { TeamPage } from "@/pages/TeamPage";
 import { AnalyticsPage } from "@/pages/AnalyticsPage";
 import { AssistantPage } from "@/pages/AssistantPage";
 import { ProjectOverviewPage } from "@/pages/ProjectOverviewPage";
-import { TaskDetailPage } from "@/pages/TaskDetailPage";
 import { LandingPage } from "@/pages/LandingPage";
 import { GuestOnlyRoute } from "@/components/auth/GuestOnlyRoute";
 
 export default function App() {
+  const location = useLocation();
+  const backgroundLocation = (location.state as { backgroundLocation?: typeof location } | null)
+    ?.backgroundLocation;
+  const isTaskDetail = /^\/projects\/\d+\/tasks\/\d+$/.test(location.pathname);
+  const fallbackLocation = isTaskDetail
+    ? { ...location, pathname: "/board", search: "", hash: "", state: null }
+    : undefined;
+
   return (
-    <Routes>
+    <Routes location={backgroundLocation ?? fallbackLocation ?? location}>
       <Route path="/" element={<LandingPage />} />
       <Route
         path="/login"
@@ -29,7 +36,7 @@ export default function App() {
       />
       <Route path="/oauth/:provider/callback" element={<OAuthCallback />} />
       <Route path="/invite/:token" element={<AcceptInvitePage />} />
-      <Route element={<AppShell />}>
+      <Route element={<AppShell modalLocation={isTaskDetail ? location : null} />}>
         <Route path="/board" element={<BoardPage />} />
         <Route path="/projects" element={<ProjectsPage />} />
         <Route path="/overview" element={<OverviewPage />} />
@@ -38,7 +45,6 @@ export default function App() {
         <Route path="/analytics" element={<AnalyticsPage />} />
         <Route path="/assistant" element={<AssistantPage />} />
         <Route path="/projects/:projectId/overview" element={<ProjectOverviewPage />} />
-        <Route path="/projects/:projectId/tasks/:taskId" element={<TaskDetailPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

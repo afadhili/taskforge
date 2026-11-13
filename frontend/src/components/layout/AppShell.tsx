@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { isAxiosError } from "axios";
-import { Navigate, Outlet, useNavigate } from "react-router-dom";
+import { Navigate, Outlet, useNavigate, type Location } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Trash2 } from "lucide-react";
 import { api, setToken } from "@/api";
@@ -17,6 +17,7 @@ import { ShellHeader } from "@/components/layout/ShellHeader";
 import { ProjectDialog } from "@/components/dialogs/ProjectDialog";
 import { TaskDialog } from "@/components/dialogs/TaskDialog";
 import { SettingsDialog } from "@/components/dialogs/SettingsDialog";
+import { TaskDetails } from "@/components/tasks/TaskDetails";
 import { CreateWorkspace } from "@/components/auth/CreateWorkspace";
 import { Spinner } from "@/components/ui/spinner";
 import { QueryFailure } from "@/components/layout/QueryFailure";
@@ -51,9 +52,13 @@ function readStoredUser(): User | null {
   }
 }
 
-export function AppShell() {
+export function AppShell({ modalLocation }: { modalLocation?: Location | null }) {
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const modalTaskId = modalLocation?.pathname.match(/\/projects\/\d+\/tasks\/(\d+)$/)?.[1];
+  const modalHasBackground = Boolean(
+    (modalLocation?.state as { backgroundLocation?: unknown } | null)?.backgroundLocation,
+  );
 
   const [user, setUserState] = useState<User | null>(readStoredUser);
   const authUser = useQuery({
@@ -228,6 +233,7 @@ export function AppShell() {
     openProjectDialog: (editProject) =>
       setDialog({ kind: "project", project: editProject }),
     openTaskDialog: () => setDialog({ kind: "task" }),
+    requestTaskDelete: (id, name) => setPendingDelete({ type: "task", id, name }),
     closeDialog: () => setDialog(null),
     settingsOpen,
     openSettings: () => setSettingsOpen(true),
@@ -310,6 +316,15 @@ export function AppShell() {
           <div className="workspace-canvas flex min-w-0 flex-1 flex-col">
             <ShellHeader />
             <Outlet />
+            {modalTaskId && (
+              <TaskDetails
+                taskId={Number(modalTaskId)}
+                onClose={() => {
+                  if (modalHasBackground) navigate(-1);
+                  else navigate("/board", { replace: true });
+                }}
+              />
+            )}
           </div>
         </div>
 

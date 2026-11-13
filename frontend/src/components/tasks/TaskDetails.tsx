@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
@@ -8,6 +8,7 @@ import {
   Paperclip,
   Plus,
   Save,
+  Trash2,
   User,
   X,
 } from "lucide-react";
@@ -24,6 +25,16 @@ import {
 } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
@@ -80,6 +91,7 @@ export function TaskDetails({
   onClose: () => void;
 }) {
   const { workspace } = useApp();
+  const location = useLocation();
   const qc = useQueryClient();
   const {
     data: task,
@@ -106,6 +118,9 @@ export function TaskDetails({
   const [saving, setSaving] = useState(false);
   const [commentBody, setCommentBody] = useState("");
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
+  const [downloadingAttachmentId, setDownloadingAttachmentId] = useState<number | null>(null);
+  const [attachmentToDelete, setAttachmentToDelete] = useState<TaskAttachment | null>(null);
+  const [deletingAttachment, setDeletingAttachment] = useState(false);
 
   // Local draft for the editable fields so edits are reflected before saving.
   const [draft, setDraft] = useState<TaskDraft>({});
@@ -216,15 +231,52 @@ export function TaskDetails({
     try {
       const formData = new FormData();
       formData.append("file", attachmentFile);
-      await api.post(`/tasks/${task.id}/attachments`, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      await api.post(`/tasks/${task.id}/attachments`, formData);
       setAttachmentFile(null);
       await refetch();
       toast.success("Attachment uploaded");
     } catch (err) {
       const failure = message(err);
       toast.error(failure.message, { description: failure.hint });
+    }
+  };
+
+  const handleAttachmentDownload = async (attachment: TaskAttachment) => {
+    setDownloadingAttachmentId(attachment.id);
+    try {
+      const response = await api.get(`/attachments/${attachment.id}`, {
+        responseType: "blob",
+      });
+      const objectUrl = URL.createObjectURL(response.data as Blob);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = attachment.original_name;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+    } catch (err) {
+      const failure = message(err);
+      toast.error(failure.message, { description: failure.hint });
+    } finally {
+      setDownloadingAttachmentId(null);
+    }
+  };
+
+  const handleAttachmentDelete = async () => {
+    if (!attachmentToDelete) return;
+    setDeletingAttachment(true);
+    try {
+      await api.delete(`/attachments/${attachmentToDelete.id}`);
+      await refetch();
+      invalidateTask();
+      toast.success("Attachment deleted");
+      setAttachmentToDelete(null);
+    } catch (err) {
+      const failure = message(err);
+      toast.error(failure.message, { description: failure.hint });
+    } finally {
+      setDeletingAttachment(false);
     }
   };
 
@@ -483,6 +535,7 @@ export function TaskDetails({
                     <Link
                       key={sub.id}
                       to={`/projects/${projectId}/tasks/${sub.id}`}
+                      state={{ backgroundLocation: (location.state as { backgroundLocation?: Location } | null)?.backgroundLocation ?? location }}
                       className="flex items-center gap-2 rounded-md border px-2 py-1.5 text-sm hover:bg-accent"
                     >
                       <span className="text-muted-foreground">TF-{sub.id}</span>
@@ -551,21 +604,34 @@ export function TaskDetails({
               {task.attachments && task.attachments.length > 0 ? (
                 <div className="grid gap-2">
                   {task.attachments.map((attachment: TaskAttachment) => (
-                    <a
+                    <div
                       key={attachment.id}
-                      href={attachment.download_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 rounded-md border px-2 py-1.5 text-sm hover:bg-accent"
+                      className="flex items-center gap-1 rounded-md border p-1"
                     >
-                      <Paperclip className="size-3.5 shrink-0 text-muted-foreground" />
-                      <span className="truncate">
-                        {attachment.original_name}
-                      </span>
-                      <span className="ml-auto shrink-0 text-xs text-muted-foreground">
-                        {(attachment.size / 1024).toFixed(1)} KB
-                      </span>
-                    </a>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        disabled={downloadingAttachmentId === attachment.id}
+                        onClick={() => void handleAttachmentDownload(attachment)}
+                        className="flex h-auto min-w-0 flex-1 items-center justify-start gap-2 px-2 py-1.5 text-left text-sm hover:bg-accent disabled:opacity-60"
+                      >
+                        <Paperclip className="size-3.5 shrink-0 text-muted-foreground" />
+                        <span className="truncate">{attachment.original_name}</span>
+                        <span className="ml-auto shrink-0 text-xs text-muted-foreground">
+                          {(attachment.size / 1024).toFixed(1)} KB
+                        </span>
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label={`Delete attachment: ${attachment.original_name}`}
+                        title="Delete attachment"
+                        onClick={() => setAttachmentToDelete(attachment)}
+                      >
+                        <Trash2 />
+                      </Button>
+                    </div>
                   ))}
                 </div>
               ) : (
@@ -576,7 +642,7 @@ export function TaskDetails({
               <form className="grid gap-2" onSubmit={handleAttachmentSubmit}>
                 <Input
                   type="file"
-                  accept="image/*,.pdf"
+                  accept=".pdf,.png,.jpg,.jpeg,.txt,.doc,.docx,.xls,.xlsx"
                   onChange={(e) =>
                     setAttachmentFile(e.target.files?.[0] ?? null)
                   }
@@ -590,11 +656,37 @@ export function TaskDetails({
                 >
                   <Plus data-slot="icon" /> Upload
                 </Button>
+                <p className="text-xs text-muted-foreground">PDF, images, text, Word, or Excel files up to 10 MB.</p>
               </form>
             </div>
           </>
         )}
       </SheetContent>
+      <AlertDialog
+        open={!!attachmentToDelete}
+        onOpenChange={(open) => {
+          if (!open && !deletingAttachment) setAttachmentToDelete(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete attachment?</AlertDialogTitle>
+            <AlertDialogDescription>
+              “{attachmentToDelete?.original_name}” will be permanently deleted. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingAttachment}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={deletingAttachment}
+              onClick={() => void handleAttachmentDelete()}
+            >
+              {deletingAttachment ? "Deleting…" : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Sheet>
   );
 }

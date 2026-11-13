@@ -58,10 +58,11 @@ export function NotificationsMenu() {
   const qc = useQueryClient();
 
   const notifications = useQuery({
-    queryKey: ["notifications", open],
-    enabled: open,
+    queryKey: ["notifications"],
     queryFn: async () =>
       normalizeNotifications((await api.get<unknown>("/notifications")).data),
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: true,
   });
 
   const invalidate = () =>
@@ -121,6 +122,13 @@ export function NotificationsMenu() {
             <div className="flex items-center gap-2 p-4 text-sm text-muted-foreground">
               <Spinner className="size-4" /> Loading…
             </div>
+          ) : notifications.isError ? (
+            <div className="grid gap-2 p-4 text-sm text-muted-foreground">
+              <span>Could not load notifications.</span>
+              <Button variant="outline" size="sm" onClick={() => void notifications.refetch()}>
+                Try again
+              </Button>
+            </div>
           ) : items.length === 0 ? (
             <p className="p-4 text-sm text-muted-foreground">
               You're all caught up.
@@ -137,10 +145,9 @@ export function NotificationsMenu() {
                   <Badge variant="secondary" className="capitalize">
                     {String(item.type).replaceAll("_", " ")}
                   </Badge>
-                  {unread > 0 &&
-                    item.id === items.find((i) => !i.read_at)?.id && (
-                      <span className="size-1.5 rounded-full bg-primary" />
-                    )}
+                  {!item.read_at && (
+                    <span className="size-1.5 rounded-full bg-primary" />
+                  )}
                 </span>
                 <span className="text-sm">
                   {String(

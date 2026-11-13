@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { KanbanSquare } from "lucide-react";
 import { api } from "@/api";
@@ -34,6 +34,7 @@ function StatCard({ label, value }: { label: string; value: string | number }) {
 
 export function OverviewPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const app = useApp();
   const project = app.project;
 
@@ -117,7 +118,7 @@ export function OverviewPage() {
                         type="button"
                         className="flex w-full items-center justify-between gap-3 rounded-md px-2 py-2 text-left text-sm transition-colors hover:bg-muted/50"
                         onClick={() =>
-                          navigate(`/projects/${project.id}/tasks/${task.id}`)
+                          navigate(`/projects/${project.id}/tasks/${task.id}`, { state: { backgroundLocation: location } })
                         }
                       >
                         <span className="min-w-0 truncate font-medium">

@@ -119,6 +119,7 @@ export type Task = {
   status: "backlog" | "todo" | "in_progress" | "in_review" | "done";
   priority: "low" | "medium" | "high" | "urgent";
   deadline?: string;
+  date_assigned?: string | null;
   estimate_minutes: number;
   assignee?: Pick<User, "id" | "name" | "email" | "avatar_url"> | null;
   dependencies: number[];

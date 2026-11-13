@@ -31,6 +31,7 @@ export type AppContextValue = {
   dialog: AppDialog;
   openProjectDialog: (project?: Project) => void;
   openTaskDialog: () => void;
+  requestTaskDelete: (id: number, name: string) => void;
   closeDialog: () => void;
   openSettings: () => void;
   closeSettings: () => void;
