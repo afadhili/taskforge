@@ -34,7 +34,7 @@ class AttachmentController extends Controller
 
     public function destroy(Attachment $attachment): JsonResponse
     {
-        $this->authorize('delete', $attachment->task);
+        $this->authorize('delete', $attachment);
 
         Storage::disk($attachment->disk)->delete($attachment->path);
 

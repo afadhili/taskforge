@@ -3,9 +3,11 @@
 namespace App\Providers;
 
 use App\Models\Project;
+use App\Models\Attachment;
 use App\Models\Task;
 use App\Models\Workspace;
 use App\Policies\ProjectPolicy;
+use App\Policies\AttachmentPolicy;
 use App\Policies\TaskPolicy;
 use App\Policies\WorkspacePolicy;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
@@ -29,5 +31,6 @@ class AuthServiceProvider extends ServiceProvider
         Gate::policy(Workspace::class, WorkspacePolicy::class);
         Gate::policy(Project::class, ProjectPolicy::class);
         Gate::policy(Task::class, TaskPolicy::class);
+        Gate::policy(Attachment::class, AttachmentPolicy::class);
     }
 }

@@ -27,6 +27,10 @@ class TaskService
 
             $project = Project::with('workspace')->findOrFail($projectId);
 
+            if (! empty($attributes['assignee_id'])) {
+                $attributes['date_assigned'] ??= now()->toDateString();
+            }
+
             if ($labelIds !== [] && $this->invalidLabelIds($labelIds, $project->workspace_id)) {
                 throw ValidationException::withMessages(['label_ids' => ['Labels must belong to this workspace.']]);
             }
@@ -51,6 +55,10 @@ class TaskService
     {
         return DB::transaction(function () use ($actor, $task, $attributes): Task {
             $old = $task->only(['status', 'assignee_id']);
+
+            if (array_key_exists('assignee_id', $attributes) && $attributes['assignee_id'] !== null && ! $task->date_assigned) {
+                $attributes['date_assigned'] = now()->toDateString();
+            }
 
             $labelIds = $attributes['label_ids'] ?? null;
             unset($attributes['label_ids']);

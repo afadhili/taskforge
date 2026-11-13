@@ -295,6 +295,7 @@ class DemoSeeder extends Seeder
                 [
                     "project_id" => $seed["project"]->id,
                     "assignee_id" => $seed["assignee"]->id,
+                    "date_assigned" => $seed["assignee"] ? now()->toDateString() : null,
                     "created_by" => $demo->id,
                     "description" =>
                         "Demo seed task created for the TaskForge demo workspace.",
@@ -308,6 +309,11 @@ class DemoSeeder extends Seeder
                     )->count(),
                 ],
             );
+            if ($task->assignee_id && ! $task->date_assigned) {
+                $task->forceFill([
+                    "date_assigned" => $task->created_at?->toDateString() ?? now()->toDateString(),
+                ])->save();
+            }
             $tasks[] = $task;
         }
 

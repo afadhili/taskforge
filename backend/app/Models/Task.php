@@ -9,11 +9,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Task extends Model
 {
-    protected $fillable = ['project_id', 'assignee_id', 'created_by', 'title', 'description', 'status', 'priority', 'deadline', 'estimate_minutes', 'position'];
+    protected $fillable = ['project_id', 'assignee_id', 'date_assigned', 'created_by', 'title', 'description', 'status', 'priority', 'deadline', 'estimate_minutes', 'position'];
 
     protected function casts(): array
     {
-        return ['deadline' => 'date'];
+        return ['deadline' => 'date', 'date_assigned' => 'date'];
     }
 
     public function project(): BelongsTo

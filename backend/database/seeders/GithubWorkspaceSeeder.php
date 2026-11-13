@@ -202,6 +202,7 @@ class GithubWorkspaceSeeder extends Seeder
                     ['project_id' => $project->id, 'title' => $title],
                     [
                         'assignee_id' => $workspace->owner_id,
+                        'date_assigned' => $workspace->owner_id ? now()->toDateString() : null,
                         'created_by' => $workspace->owner_id,
                         'description' => 'Sample task for the Github workspace demo dataset.',
                         'status' => $status,
@@ -213,6 +214,11 @@ class GithubWorkspaceSeeder extends Seeder
                         'position' => $project->tasks()->count(),
                     ],
                 );
+                if ($task->assignee_id && ! $task->date_assigned) {
+                    $task->forceFill([
+                        'date_assigned' => $task->created_at?->toDateString() ?? now()->toDateString(),
+                    ])->save();
+                }
                 $createdTasks += $task->wasRecentlyCreated ? 1 : 0;
             }
         }
